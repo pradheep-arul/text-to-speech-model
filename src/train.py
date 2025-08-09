@@ -39,7 +39,7 @@ torch.backends.cudnn.allow_tf32 = True
 if device.type == "cuda":
     torch.cuda.empty_cache()  # Clear any residual memory
     # Note: Modern PyTorch manages memory automatically
-    torch.cuda.set_device(device)  # Ensure we're using the right GPU
+    torch.cuda.set_device(0)  # Use first GPU
 
 # -------- Checkpoint Configuration -------- #
 checkpoint_dir = "checkpoints"
