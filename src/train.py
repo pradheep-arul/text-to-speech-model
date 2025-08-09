@@ -80,7 +80,7 @@ def load_checkpoint():
     latest_checkpoint = max(checkpoint_files, key=os.path.getctime)
     print(f"Loading checkpoint: {latest_checkpoint}")
 
-    checkpoint = torch.load(latest_checkpoint, map_location=device)
+    checkpoint = torch.load(latest_checkpoint, map_location=device, weights_only=True)
     
     model.load_state_dict(checkpoint["model_state"])
     optimizer.load_state_dict(checkpoint["optimizer_state"])
