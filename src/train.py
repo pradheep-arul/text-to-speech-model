@@ -36,13 +36,10 @@ torch.backends.cuda.matmul.allow_tf32 = True  # Allow TF32 on Ampere
 torch.backends.cudnn.allow_tf32 = True
 
 # Memory optimization
-torch.backends.cuda.empty_cache()  # Clear any residual memory
 if device.type == "cuda":
-    # Set memory allocation mode to reduce fragmentation
-    torch.cuda.set_allocator_settings(
-        max_split_size_mb=128,  # Reduce memory fragmentation
-        garbage_collection_threshold=0.8  # More aggressive GC
-    )
+    torch.cuda.empty_cache()  # Clear any residual memory
+    # Note: Modern PyTorch manages memory automatically
+    torch.cuda.set_device(device)  # Ensure we're using the right GPU
 
 # -------- Checkpoint Configuration -------- #
 checkpoint_dir = "checkpoints"
