@@ -26,9 +26,9 @@ print("Using device:", device)
 # -------- Hyperparameters -------- #
 vocab = CharTokenizer()
 vocab_size = len(vocab.vocab)
-batch_size = 32  # Increased for CUDA
+batch_size = 64  # Increased since we have memory headroom
 num_epochs = 50
-lr = 1e-4
+lr = 2e-4  # Slightly increased for larger batch size
 
 # Enable CUDA optimizations
 torch.backends.cudnn.benchmark = True  # Enable auto-tuner
@@ -149,10 +149,19 @@ for epoch in range(start_epoch, num_epochs):
     epoch_time = time.time() - epoch_start
     avg = total_loss / len(loader)
     loss_history.append(avg)
+    
+    # Calculate detailed metrics
+    samples_per_sec = (len(loader) * batch_size) / epoch_time
+    gpu_mem_used = torch.cuda.memory_allocated() / 1024**3
+    gpu_mem_cached = torch.cuda.memory_reserved() / 1024**3
+    
     print(
-        f"[Epoch {epoch+1}/{num_epochs}] Loss: {avg:.4f} - Epoch time: {epoch_time:.1f}s ({epoch_time/60:.1f}min)"
+        f"[Epoch {epoch+1}/{num_epochs}]"
+        f"\n  Loss: {avg:.4f}"
+        f"\n  Time: {epoch_time:.1f}s ({epoch_time/60:.1f}min)"
+        f"\n  Throughput: {len(loader)/epoch_time:.1f} batches/sec ({samples_per_sec:.1f} samples/sec)"
+        f"\n  GPU Memory: {gpu_mem_used:.1f}GB used, {gpu_mem_cached:.1f}GB cached"
     )
-    print(f"Throughput: {len(loader)/epoch_time:.1f} batches/sec\n")
 
     if (epoch + 1) % save_every == 0 or epoch + 1 == num_epochs:
         save_checkpoint(epoch, loss_history)
