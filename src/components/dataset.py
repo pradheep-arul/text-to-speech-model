@@ -1,5 +1,5 @@
 import os
-
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
@@ -24,7 +24,9 @@ class LJSpeechDataset(Dataset):
     def __getitem__(self, idx):
         wav_file = self.metadata.iloc[idx, 0]
         text = self.metadata.iloc[idx, 1]
-        wav_path = os.path.join(self.root_dir, "wavs", f"{wav_file}.wav")
-        mel = wav_to_mel(wav_path)  # shape: [n_mels, T]
+        mel_path = os.path.join(self.root_dir, "mel_cache", f"{wav_file}.npy")
+        
+        # Load pre-computed mel spectrogram
+        mel = np.load(mel_path)
         tokens = self.tokenizer.encode(text)
         return torch.tensor(tokens), torch.tensor(mel)
