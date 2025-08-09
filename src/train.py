@@ -26,14 +26,23 @@ print("Using device:", device)
 # -------- Hyperparameters -------- #
 vocab = CharTokenizer()
 vocab_size = len(vocab.vocab)
-batch_size = 64  # Increased since we have memory headroom
+batch_size = 96  # Further increased based on memory usage
 num_epochs = 50
-lr = 2e-4  # Slightly increased for larger batch size
+lr = 2e-4
 
 # Enable CUDA optimizations
 torch.backends.cudnn.benchmark = True  # Enable auto-tuner
 torch.backends.cuda.matmul.allow_tf32 = True  # Allow TF32 on Ampere
 torch.backends.cudnn.allow_tf32 = True
+
+# Memory optimization
+torch.backends.cuda.empty_cache()  # Clear any residual memory
+if device.type == "cuda":
+    # Set memory allocation mode to reduce fragmentation
+    torch.cuda.set_allocator_settings(
+        max_split_size_mb=128,  # Reduce memory fragmentation
+        garbage_collection_threshold=0.8  # More aggressive GC
+    )
 
 # -------- Checkpoint Configuration -------- #
 checkpoint_dir = "checkpoints"
@@ -74,7 +83,13 @@ def load_checkpoint():
     latest_checkpoint = max(checkpoint_files, key=os.path.getctime)
     print(f"Loading checkpoint: {latest_checkpoint}")
 
-    checkpoint = torch.load(latest_checkpoint, map_location=device)
+    # Load checkpoint with weights_only=True for security
+    checkpoint = torch.load(
+        latest_checkpoint, 
+        map_location=device,
+        weights_only=True  # More secure loading
+    )
+    
     model.load_state_dict(checkpoint["model_state"])
     optimizer.load_state_dict(checkpoint["optimizer_state"])
 
@@ -96,7 +111,7 @@ def save_checkpoint(epoch, loss_history):
         "batch_size": batch_size,
         "lr": lr,
     }
-    torch.save(checkpoint, checkpoint_path)
+    torch.save(checkpoint, checkpoint_path, _use_new_zipfile_serialization=True)
     print(f"Checkpoint saved: {checkpoint_path}")
 
     old_checkpoints = glob.glob(os.path.join(checkpoint_dir, "checkpoint_epoch_*.pth"))
@@ -116,16 +131,28 @@ for epoch in range(start_epoch, num_epochs):
     model.train()
     print("Training...")
     total_loss = 0
+    min_loss = float('inf')
+    max_loss = float('-inf')
+    running_loss = 0  # For last N iterations
+    grad_norm = 0
+    data_loading_time = 0
+    compute_time = 0
+    window_size = 50  # For running average
 
     iteration = 0
     batch_start = time.time()
+    last_log_time = time.time()
+    
+    # Pre-fetch next batch
     for tokens, mels in loader:
-        tokens = tokens.to(device, non_blocking=True)  # [B, T_text]
-        mels = mels.to(device, non_blocking=True)  # [B, 80, T_mel]
+        with torch.cuda.stream(torch.cuda.Stream()):  # Use separate CUDA stream for data transfer
+            # Move data to GPU asynchronously
+            tokens = tokens.to(device, non_blocking=True)  # [B, T_text]
+            mels = mels.to(device, non_blocking=True)  # [B, 80, T_mel]
 
-        # Shift mel for teacher forcing
-        decoder_input = mels[:, :, :-1].transpose(1, 2)  # [B, T_mel-1, 80]
-        target = mels[:, :, 1:].transpose(1, 2)  # [B, T_mel-1, 80]
+            # Shift mel for teacher forcing
+            decoder_input = mels[:, :, :-1].transpose(1, 2)  # [B, T_mel-1, 80]
+            target = mels[:, :, 1:].transpose(1, 2)  # [B, T_mel-1, 80]
 
         # Forward pass
         pred_mels = model(tokens, decoder_input)  # [B, T_mel-1, 80]
@@ -133,10 +160,15 @@ for epoch in range(start_epoch, num_epochs):
 
         optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
 
-        total_loss += loss.item()
+        # Update metrics
+        loss_val = loss.item()
+        total_loss += loss_val
+        min_loss = min(min_loss, loss_val)
+        max_loss = max(max_loss, loss_val)
+        running_loss = 0.95 * running_loss + 0.05 * loss_val if iteration > 0 else loss_val
 
         if iteration % 25 == 0:
             batch_time = time.time() - batch_start
@@ -157,10 +189,16 @@ for epoch in range(start_epoch, num_epochs):
     
     print(
         f"[Epoch {epoch+1}/{num_epochs}]"
-        f"\n  Loss: {avg:.4f}"
+        f"\n  Loss:"
+        f"\n    Current: {avg:.4f}"
+        f"\n    Running: {running_loss:.4f}"
+        f"\n    Min: {min_loss:.4f}"
+        f"\n    Max: {max_loss:.4f}"
+        f"\n  Gradient norm: {grad_norm:.2f}"
         f"\n  Time: {epoch_time:.1f}s ({epoch_time/60:.1f}min)"
         f"\n  Throughput: {len(loader)/epoch_time:.1f} batches/sec ({samples_per_sec:.1f} samples/sec)"
         f"\n  GPU Memory: {gpu_mem_used:.1f}GB used, {gpu_mem_cached:.1f}GB cached"
+        f"\n  ETA: {(num_epochs - epoch - 1) * epoch_time/60:.1f}min remaining"
     )
 
     if (epoch + 1) % save_every == 0 or epoch + 1 == num_epochs:
