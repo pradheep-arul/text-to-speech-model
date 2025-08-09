@@ -1,0 +1,6 @@
+data/
+*.wav
+*.pth
+notebooks/
+logs/
+output/
