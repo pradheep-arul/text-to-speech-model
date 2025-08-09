@@ -80,12 +80,7 @@ def load_checkpoint():
     latest_checkpoint = max(checkpoint_files, key=os.path.getctime)
     print(f"Loading checkpoint: {latest_checkpoint}")
 
-    # Load checkpoint with weights_only=True for security
-    checkpoint = torch.load(
-        latest_checkpoint, 
-        map_location=device,
-        weights_only=True  # More secure loading
-    )
+    checkpoint = torch.load(latest_checkpoint, map_location=device)
     
     model.load_state_dict(checkpoint["model_state"])
     optimizer.load_state_dict(checkpoint["optimizer_state"])
@@ -99,16 +94,30 @@ def load_checkpoint():
 
 def save_checkpoint(epoch, loss_history):
     checkpoint_path = os.path.join(checkpoint_dir, f"checkpoint_epoch_{epoch}.pth")
-    checkpoint = {
-        "epoch": epoch,
-        "model_state": model.state_dict(),
-        "optimizer_state": optimizer.state_dict(),
-        "loss_history": loss_history,
-        "vocab_size": vocab_size,
-        "batch_size": batch_size,
-        "lr": lr,
-    }
-    torch.save(checkpoint, checkpoint_path, _use_new_zipfile_serialization=True)
+    temp_path = checkpoint_path + '.tmp'
+    
+    try:
+        # Save to temporary file first
+        checkpoint = {
+            "epoch": epoch,
+            "model_state": model.state_dict(),
+            "optimizer_state": optimizer.state_dict(),
+            "loss_history": loss_history,
+            "vocab_size": vocab_size,
+            "batch_size": batch_size,
+            "lr": lr,
+        }
+        torch.save(checkpoint, temp_path)
+        
+        # If save was successful, rename to final path
+        if os.path.exists(checkpoint_path):
+            os.remove(checkpoint_path)
+        os.rename(temp_path, checkpoint_path)
+        print(f"Checkpoint saved: {checkpoint_path}")
+    except Exception as e:
+        print(f"Warning: Failed to save checkpoint: {e}")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
     print(f"Checkpoint saved: {checkpoint_path}")
 
     old_checkpoints = glob.glob(os.path.join(checkpoint_dir, "checkpoint_epoch_*.pth"))
