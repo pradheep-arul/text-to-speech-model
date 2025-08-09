@@ -10,11 +10,14 @@ from components.tokenizer import CharTokenizer
 from nn_models.transformer_tts import TransformerTTS
 
 # -------- Setup -------- #
-device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if device.type == "cuda":
+    print(f"Using GPU: {torch.cuda.get_device_name()}")
+    print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB")
+else:
+    torch.set_num_threads(14)  # Use all CPU cores
+    print("Using CPU threads:", torch.get_num_threads())
 print("Using device:", device)
-
-torch.set_num_threads(14)  # Use all CPU cores
-print("CPU threads:", torch.get_num_threads())
 
 # -------- Load Tokenizer and Model -------- #
 tokenizer = CharTokenizer()
@@ -22,7 +25,7 @@ vocab_size = len(tokenizer.vocab)
 
 model = TransformerTTS(vocab_size=vocab_size).to(device)
 model.load_state_dict(
-    torch.load("output/tts_transformer_latest.pth", map_location=device)
+    torch.load("model/tts_transformer_latest.pth", map_location=device)
 )
 model.eval()
 

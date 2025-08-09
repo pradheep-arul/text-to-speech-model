@@ -14,10 +14,14 @@ from utils.collate import collate_fn
 
 
 # -------- Setup -------- #
-device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-torch.set_num_threads(14)  # Use all CPU cores
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if device.type == "cuda":
+    print(f"Using GPU: {torch.cuda.get_device_name()}")
+    print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB")
+else:
+    torch.set_num_threads(14)  # Use all CPU cores
+    print("Using CPU threads:", torch.get_num_threads())
 print("Using device:", device)
-print("CPU threads:", torch.get_num_threads())
 
 # -------- Hyperparameters -------- #
 vocab = CharTokenizer()
@@ -137,10 +141,10 @@ for epoch in range(start_epoch, num_epochs):
         save_checkpoint(epoch, loss_history)
 
     if epoch + 1 == num_epochs:
-        model_path = "output/tts_transformer_latest.pth"
+        model_path = "model/tts_transformer_latest.pth"
         if os.path.exists(model_path):
             timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-            backup_path = f"output/tts_transformer_{timestamp}.pth"
+            backup_path = f"model/tts_transformer_{timestamp}.pth"
             os.rename(model_path, backup_path)
             print(f"📦 Existing model backed up as {backup_path}")
 
