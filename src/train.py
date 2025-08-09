@@ -26,9 +26,14 @@ print("Using device:", device)
 # -------- Hyperparameters -------- #
 vocab = CharTokenizer()
 vocab_size = len(vocab.vocab)
-batch_size = 16  # Conservative for MPS stability
+batch_size = 32  # Increased for CUDA
 num_epochs = 50
 lr = 1e-4
+
+# Enable CUDA optimizations
+torch.backends.cudnn.benchmark = True  # Enable auto-tuner
+torch.backends.cuda.matmul.allow_tf32 = True  # Allow TF32 on Ampere
+torch.backends.cudnn.allow_tf32 = True
 
 # -------- Checkpoint Configuration -------- #
 checkpoint_dir = "checkpoints"
@@ -38,8 +43,20 @@ save_every = 1  # Save checkpoint every N epochs
 # -------- Dataset & Loader -------- #
 dataset = LJSpeechDataset()
 
+# Calculate optimal number of workers
+num_workers = min(8, os.cpu_count() or 1)  # Use up to 8 workers
+print(f"Using {num_workers} data loader workers")
+prefetch_factor = 2  # How many batches to prefetch per worker
+
 loader = DataLoader(
-    dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=0
+    dataset, 
+    batch_size=batch_size, 
+    shuffle=True, 
+    collate_fn=collate_fn, 
+    num_workers=num_workers,
+    prefetch_factor=prefetch_factor,
+    pin_memory=True,  # Faster data transfer to GPU
+    persistent_workers=True  # Keep workers alive between epochs
 )
 
 # -------- Model, Loss, Optimizer -------- #
