@@ -4,3 +4,7 @@ data/
 notebooks/
 logs/
 output/
+.DS_Store
+__pycache__
+
+checkpoints/

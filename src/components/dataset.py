@@ -1,0 +1,30 @@
+import os
+
+import pandas as pd
+import torch
+from torch.utils.data import Dataset
+
+from components.audio import wav_to_mel
+from components.tokenizer import CharTokenizer
+
+
+class LJSpeechDataset(Dataset):
+    def __init__(self, root_dir="data/LJSpeech-1.1", max_samples=None):
+        self.metadata = pd.read_csv(
+            os.path.join(root_dir, "metadata.csv"), sep="|", header=None
+        )
+        self.root_dir = root_dir
+        if max_samples:
+            self.metadata = self.metadata.iloc[:max_samples]
+        self.tokenizer = CharTokenizer()
+
+    def __len__(self):
+        return len(self.metadata)
+
+    def __getitem__(self, idx):
+        wav_file = self.metadata.iloc[idx, 0]
+        text = self.metadata.iloc[idx, 1]
+        wav_path = os.path.join(self.root_dir, "wavs", f"{wav_file}.wav")
+        mel = wav_to_mel(wav_path)  # shape: [n_mels, T]
+        tokens = self.tokenizer.encode(text)
+        return torch.tensor(tokens), torch.tensor(mel)
