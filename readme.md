@@ -33,6 +33,7 @@ cd ..
 
 ## Training
 ```
+python src/preprocess_dataset.py
 python src/train.py
 ```
 
