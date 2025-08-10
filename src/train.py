@@ -175,9 +175,11 @@ for epoch in range(start_epoch, num_epochs):
             0.95 * running_loss + 0.05 * loss_val if iteration > 0 else loss_val
         )
 
-        # Clear GPU cache periodically to maintain consistent memory
+        # Only clear cache if memory usage is actually high (>6GB)
         if iteration % 100 == 0 and device.type == "cuda":
-            torch.cuda.empty_cache()
+            gpu_mem_used = torch.cuda.memory_allocated() / 1024**3
+            if gpu_mem_used > 6.0:  # Only clear if using >6GB
+                torch.cuda.empty_cache()
 
         if iteration % 25 == 0:
             batch_time = time.time() - batch_start
