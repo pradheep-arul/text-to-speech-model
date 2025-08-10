@@ -61,7 +61,7 @@ loader = DataLoader(
 model = TransformerTTS(vocab_size=vocab_size).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # Match working CPU version
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="min", factor=0.5, patience=2  # Reduced from 3 to 2
+    optimizer, mode="max", factor=0.5, patience=2  # Reduced from 3 to 2
 )
 loss_fn = torch.nn.L1Loss()
 
