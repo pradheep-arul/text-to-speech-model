@@ -26,7 +26,7 @@ print("Using device:", device)
 # -------- Hyperparameters -------- #
 vocab = CharTokenizer()
 vocab_size = len(vocab.vocab)
-batch_size = 16  # Match the working CPU version exactly
+batch_size = 32  # Match the working CPU version exactly
 num_epochs = 50
 lr = 1e-4  # Match the working CPU version
 
@@ -60,6 +60,9 @@ loader = DataLoader(
 # -------- Model, Loss, Optimizer -------- #
 model = TransformerTTS(vocab_size=vocab_size).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # Match working CPU version
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer, mode='min', factor=0.5, patience=5, verbose=True
+)
 loss_fn = torch.nn.L1Loss()
 
 
@@ -196,6 +199,9 @@ for epoch in range(start_epoch, num_epochs):
         f"\n  GPU Memory: {gpu_mem_used:.1f}GB used, {gpu_mem_cached:.1f}GB cached"
         f"\n  ETA: {(num_epochs - epoch - 1) * epoch_time/60:.1f}min remaining"
     )
+
+    # Step the learning rate scheduler
+    scheduler.step(avg)
 
     if (epoch + 1) % save_every == 0 or epoch + 1 == num_epochs:
         save_checkpoint(epoch, loss_history)
