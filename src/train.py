@@ -26,9 +26,9 @@ print("Using device:", device)
 # -------- Hyperparameters -------- #
 vocab = CharTokenizer()
 vocab_size = len(vocab.vocab)
-batch_size = 96  # Further increased based on memory usage
+batch_size = 32  # Match the working CPU version
 num_epochs = 50
-lr = 2e-4
+lr = 1e-4  # Match the working CPU version
 
 # Enable CUDA optimizations
 torch.backends.cudnn.benchmark = True  # Enable auto-tuner
