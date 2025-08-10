@@ -61,7 +61,7 @@ loader = DataLoader(
 model = TransformerTTS(vocab_size=vocab_size).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # Match working CPU version
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=0.5, patience=5, verbose=True
+    optimizer, mode='min', factor=0.5, patience=3, verbose=True
 )
 loss_fn = torch.nn.L1Loss()
 
@@ -185,6 +185,7 @@ for epoch in range(start_epoch, num_epochs):
     samples_per_sec = (len(loader) * batch_size) / epoch_time
     gpu_mem_used = torch.cuda.memory_allocated() / 1024**3
     gpu_mem_cached = torch.cuda.memory_reserved() / 1024**3
+    current_lr = optimizer.param_groups[0]['lr']
     
     print(
         f"[Epoch {epoch+1}/{num_epochs}]"
@@ -194,6 +195,7 @@ for epoch in range(start_epoch, num_epochs):
         f"\n    Min: {min_loss:.4f}"
         f"\n    Max: {max_loss:.4f}"
         f"\n  Gradient norm: {grad_norm:.2f}"
+        f"\n  Learning rate: {current_lr:.2e}"
         f"\n  Time: {epoch_time:.1f}s ({epoch_time/60:.1f}min)"
         f"\n  Throughput: {len(loader)/epoch_time:.1f} batches/sec ({samples_per_sec:.1f} samples/sec)"
         f"\n  GPU Memory: {gpu_mem_used:.1f}GB used, {gpu_mem_cached:.1f}GB cached"
