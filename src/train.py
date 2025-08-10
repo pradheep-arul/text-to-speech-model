@@ -26,7 +26,7 @@ print("Using device:", device)
 # -------- Hyperparameters -------- #
 vocab = CharTokenizer()
 vocab_size = len(vocab.vocab)
-batch_size = 32  # Match the working CPU version
+batch_size = 16  # Match the working CPU version exactly
 num_epochs = 50
 lr = 1e-4  # Match the working CPU version
 
@@ -49,25 +49,17 @@ save_every = 1  # Save checkpoint every N epochs
 # -------- Dataset & Loader -------- #
 dataset = LJSpeechDataset()
 
-# Calculate optimal number of workers
-num_workers = min(8, os.cpu_count() or 1)  # Use up to 8 workers
-print(f"Using {num_workers} data loader workers")
-prefetch_factor = 2  # How many batches to prefetch per worker
-
 loader = DataLoader(
     dataset, 
     batch_size=batch_size, 
     shuffle=True, 
     collate_fn=collate_fn, 
-    num_workers=num_workers,
-    prefetch_factor=prefetch_factor,
-    pin_memory=True,  # Faster data transfer to GPU
-    persistent_workers=True  # Keep workers alive between epochs
+    num_workers=0  # Match working CPU version - simple loading
 )
 
 # -------- Model, Loss, Optimizer -------- #
 model = TransformerTTS(vocab_size=vocab_size).to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # Match working CPU version
 loss_fn = torch.nn.L1Loss()
 
 
@@ -149,16 +141,14 @@ for epoch in range(start_epoch, num_epochs):
     batch_start = time.time()
     last_log_time = time.time()
     
-    # Pre-fetch next batch
+    # Simple data loading like working CPU version
     for tokens, mels in loader:
-        with torch.cuda.stream(torch.cuda.Stream()):  # Use separate CUDA stream for data transfer
-            # Move data to GPU asynchronously
-            tokens = tokens.to(device, non_blocking=True)  # [B, T_text]
-            mels = mels.to(device, non_blocking=True)  # [B, 80, T_mel]
+        tokens = tokens.to(device, non_blocking=True)  # [B, T_text]
+        mels = mels.to(device, non_blocking=True)  # [B, 80, T_mel]
 
-            # Shift mel for teacher forcing
-            decoder_input = mels[:, :, :-1].transpose(1, 2)  # [B, T_mel-1, 80]
-            target = mels[:, :, 1:].transpose(1, 2)  # [B, T_mel-1, 80]
+        # Shift mel for teacher forcing
+        decoder_input = mels[:, :, :-1].transpose(1, 2)  # [B, T_mel-1, 80]
+        target = mels[:, :, 1:].transpose(1, 2)  # [B, T_mel-1, 80]
 
         # Forward pass
         pred_mels = model(tokens, decoder_input)  # [B, T_mel-1, 80]
