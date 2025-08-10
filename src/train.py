@@ -149,6 +149,10 @@ for epoch in range(start_epoch, num_epochs):
         tokens = tokens.to(device, non_blocking=True)  # [B, T_text]
         mels = mels.to(device, non_blocking=True)  # [B, 80, T_mel]
 
+        # Track sequence lengths for debugging
+        batch_max_text_len = tokens.shape[1]
+        batch_max_mel_len = mels.shape[2]
+
         # Shift mel for teacher forcing
         decoder_input = mels[:, :, :-1].transpose(1, 2)  # [B, T_mel-1, 80]
         target = mels[:, :, 1:].transpose(1, 2)  # [B, T_mel-1, 80]
@@ -177,9 +181,19 @@ for epoch in range(start_epoch, num_epochs):
 
         if iteration % 25 == 0:
             batch_time = time.time() - batch_start
-            print(
-                f"Iteration {iteration} - loss: {loss.item():.4f} - batch_time: {batch_time/25:.2f}s/batch"
-            )
+            if device.type == "cuda":
+                gpu_mem_used = torch.cuda.memory_allocated() / 1024**3
+                gpu_mem_cached = torch.cuda.memory_reserved() / 1024**3
+                print(
+                    f"Iteration {iteration} - loss: {loss.item():.4f} - batch_time: {batch_time/25:.2f}s/batch"
+                    f" - GPU: {gpu_mem_used:.1f}GB used, {gpu_mem_cached:.1f}GB cached"
+                    f" - Seq: text={batch_max_text_len}, mel={batch_max_mel_len}"
+                )
+            else:
+                print(
+                    f"Iteration {iteration} - loss: {loss.item():.4f} - batch_time: {batch_time/25:.2f}s/batch"
+                    f" - Seq: text={batch_max_text_len}, mel={batch_max_mel_len}"
+                )
             batch_start = time.time()
         iteration += 1
 
