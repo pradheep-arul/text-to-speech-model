@@ -171,6 +171,10 @@ for epoch in range(start_epoch, num_epochs):
             0.95 * running_loss + 0.05 * loss_val if iteration > 0 else loss_val
         )
 
+        # Clear GPU cache periodically to maintain consistent memory
+        if iteration % 100 == 0 and device.type == "cuda":
+            torch.cuda.empty_cache()
+
         if iteration % 25 == 0:
             batch_time = time.time() - batch_start
             print(
