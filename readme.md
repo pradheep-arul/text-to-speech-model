@@ -18,11 +18,11 @@ pip freeze > requirements.txt
 git clone https://github.com/pradheep-arul/text-to-speech-model.git
 cd text-to-speech-model
 
-# Setup Python environment
-pip install torch torchaudio librosa matplotlib numpy tqdm soundfile pandas psutil
-
 # Download and extract dataset
 mkdir data checkpoints output
+
+# Setup Python environment
+pip install torch torchaudio librosa matplotlib numpy tqdm soundfile pandas psutil
 
 cd data
 wget https://data.keithito.com/data/speech/LJSpeech-1.1.tar.bz2

@@ -61,7 +61,7 @@ loader = DataLoader(
 model = TransformerTTS(vocab_size=vocab_size).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # Match working CPU version
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="min", factor=0.5, patience=3
+    optimizer, mode="min", factor=0.5, patience=2  # Reduced from 3 to 2
 )
 loss_fn = torch.nn.L1Loss()
 
@@ -225,7 +225,15 @@ for epoch in range(start_epoch, num_epochs):
     )
 
     # Step the learning rate scheduler
+    old_lr = optimizer.param_groups[0]["lr"]
     scheduler.step(avg)
+    new_lr = optimizer.param_groups[0]["lr"]
+    
+    if new_lr != old_lr:
+        print(f"🔄 Learning rate reduced: {old_lr:.2e} → {new_lr:.2e}")
+    
+    # Debug scheduler state
+    print(f"📊 Scheduler: best={scheduler.best:.4f}, bad_epochs={scheduler.num_bad_epochs}, patience={scheduler.patience}")
 
     if (epoch + 1) % save_every == 0 or epoch + 1 == num_epochs:
         save_checkpoint(epoch, loss_history)
