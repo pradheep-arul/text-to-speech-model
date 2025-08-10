@@ -4,20 +4,22 @@ import torchaudio
 from torchaudio.transforms import GriffinLim, InverseMelScale, MelSpectrogram
 
 
-def wav_to_mel(wav_path, sr=22050, n_mels=80, hop_length=256, win_length=1024, device=None):
+def wav_to_mel(
+    wav_path, sr=22050, n_mels=80, hop_length=256, win_length=1024, device=None
+):
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+
     # Load audio using torchaudio (faster than librosa)
     waveform, sample_rate = torchaudio.load(wav_path)
-    
+
     # Resample if needed
     if sample_rate != sr:
         resampler = torchaudio.transforms.Resample(sample_rate, sr).to(device)
         waveform = resampler(waveform.to(device))
     else:
         waveform = waveform.to(device)
-    
+
     # Create mel spectrogram transform on GPU
     mel_transform = MelSpectrogram(
         sample_rate=sr,
@@ -27,17 +29,19 @@ def wav_to_mel(wav_path, sr=22050, n_mels=80, hop_length=256, win_length=1024, d
         n_mels=n_mels,
         power=2.0,
     ).to(device)
-    
+
     # Compute mel spectrogram
     mel_spec = mel_transform(waveform)
-    
+
     # Convert to dB scale to match librosa.power_to_db(ref=np.max)
     # This matches the working CPU version more closely
     mel_spec = 10.0 * torch.log10(torch.clamp(mel_spec, min=1e-10))
     # Normalize by max like librosa does with ref=np.max
     mel_spec = mel_spec - torch.max(mel_spec)
-    
-    return mel_spec.squeeze(0).cpu().numpy()  # shape: (n_mels, time) - match librosa output
+
+    return (
+        mel_spec.squeeze(0).cpu().numpy()
+    )  # shape: (n_mels, time) - match librosa output
 
 
 def mel_to_audio(mel_spec, sr=22050, n_fft=1024, hop_length=256, win_length=1024):

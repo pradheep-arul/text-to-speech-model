@@ -1,6 +1,4 @@
-
 CHARACTER_TOKENS = "abcdefghijklmnopqrstuvwxyz .,'?!"
-
 
 
 class CharTokenizer:

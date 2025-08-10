@@ -11,13 +11,13 @@ from components.tokenizer import CharTokenizer
 from nn_models.transformer_tts import TransformerTTS
 from utils.collate import collate_fn
 
-
-
 # -------- Setup -------- #
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if device.type == "cuda":
     print(f"Using GPU: {torch.cuda.get_device_name()}")
-    print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB")
+    print(
+        f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB"
+    )
 else:
     torch.set_num_threads(14)  # Use all CPU cores
     print("Using CPU threads:", torch.get_num_threads())
@@ -50,18 +50,18 @@ save_every = 1  # Save checkpoint every N epochs
 dataset = LJSpeechDataset()
 
 loader = DataLoader(
-    dataset, 
-    batch_size=batch_size, 
-    shuffle=True, 
-    collate_fn=collate_fn, 
-    num_workers=0  # Match working CPU version - simple loading
+    dataset,
+    batch_size=batch_size,
+    shuffle=True,
+    collate_fn=collate_fn,
+    num_workers=0,  # Match working CPU version - simple loading
 )
 
 # -------- Model, Loss, Optimizer -------- #
 model = TransformerTTS(vocab_size=vocab_size).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # Match working CPU version
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=0.5, patience=3, verbose=True
+    optimizer, mode="min", factor=0.5, patience=3
 )
 loss_fn = torch.nn.L1Loss()
 
@@ -76,7 +76,7 @@ def load_checkpoint():
     print(f"Loading checkpoint: {latest_checkpoint}")
 
     checkpoint = torch.load(latest_checkpoint, map_location=device, weights_only=True)
-    
+
     model.load_state_dict(checkpoint["model_state"])
     optimizer.load_state_dict(checkpoint["optimizer_state"])
 
@@ -89,8 +89,8 @@ def load_checkpoint():
 
 def save_checkpoint(epoch, loss_history):
     checkpoint_path = os.path.join(checkpoint_dir, f"checkpoint_epoch_{epoch}.pth")
-    temp_path = checkpoint_path + '.tmp'
-    
+    temp_path = checkpoint_path + ".tmp"
+
     try:
         # Save to temporary file first
         checkpoint = {
@@ -103,7 +103,7 @@ def save_checkpoint(epoch, loss_history):
             "lr": lr,
         }
         torch.save(checkpoint, temp_path)
-        
+
         # If save was successful, rename to final path
         if os.path.exists(checkpoint_path):
             os.remove(checkpoint_path)
@@ -132,8 +132,8 @@ for epoch in range(start_epoch, num_epochs):
     model.train()
     print("Training...")
     total_loss = 0
-    min_loss = float('inf')
-    max_loss = float('-inf')
+    min_loss = float("inf")
+    max_loss = float("-inf")
     running_loss = 0  # For last N iterations
     grad_norm = 0
     data_loading_time = 0
@@ -143,7 +143,7 @@ for epoch in range(start_epoch, num_epochs):
     iteration = 0
     batch_start = time.time()
     last_log_time = time.time()
-    
+
     # Simple data loading like working CPU version
     for tokens, mels in loader:
         tokens = tokens.to(device, non_blocking=True)  # [B, T_text]
@@ -167,7 +167,9 @@ for epoch in range(start_epoch, num_epochs):
         total_loss += loss_val
         min_loss = min(min_loss, loss_val)
         max_loss = max(max_loss, loss_val)
-        running_loss = 0.95 * running_loss + 0.05 * loss_val if iteration > 0 else loss_val
+        running_loss = (
+            0.95 * running_loss + 0.05 * loss_val if iteration > 0 else loss_val
+        )
 
         if iteration % 25 == 0:
             batch_time = time.time() - batch_start
@@ -180,13 +182,13 @@ for epoch in range(start_epoch, num_epochs):
     epoch_time = time.time() - epoch_start
     avg = total_loss / len(loader)
     loss_history.append(avg)
-    
+
     # Calculate detailed metrics
     samples_per_sec = (len(loader) * batch_size) / epoch_time
     gpu_mem_used = torch.cuda.memory_allocated() / 1024**3
     gpu_mem_cached = torch.cuda.memory_reserved() / 1024**3
-    current_lr = optimizer.param_groups[0]['lr']
-    
+    current_lr = optimizer.param_groups[0]["lr"]
+
     print(
         f"[Epoch {epoch+1}/{num_epochs}]"
         f"\n  Loss:"

@@ -1,4 +1,5 @@
 import os
+
 import numpy as np
 import pandas as pd
 import torch
@@ -25,7 +26,7 @@ class LJSpeechDataset(Dataset):
         wav_file = self.metadata.iloc[idx, 0]
         text = self.metadata.iloc[idx, 1]
         mel_path = os.path.join(self.root_dir, "mel_cache", f"{wav_file}.npy")
-        
+
         # Load pre-computed mel spectrogram
         mel = np.load(mel_path)
         tokens = self.tokenizer.encode(text)
