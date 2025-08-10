@@ -43,4 +43,9 @@ python src/train.py
 python src/inference.py
 ```
 
+## Pre commit
+```
+isort .
+black .
+```
 

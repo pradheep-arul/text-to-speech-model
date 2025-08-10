@@ -39,9 +39,7 @@ def wav_to_mel(
     # Normalize by max like librosa does with ref=np.max
     mel_spec = mel_spec - torch.max(mel_spec)
 
-    return (
-        mel_spec.squeeze(0).cpu().numpy()
-    )  # shape: (n_mels, time) - match librosa output
+    return mel_spec.cpu().numpy()  # shape: (1, n_mels, time)
 
 
 def mel_to_audio(mel_spec, sr=22050, n_fft=1024, hop_length=256, win_length=1024):
